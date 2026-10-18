@@ -10,7 +10,7 @@ public class Conexao {
         "jdbc:mysql://localhost:3306/lavajato";
 
     private static final String USER = "root";
-    private static final String PASSWORD = "Jv220907@";
+    private static final String PASSWORD = "root";
 
     public static Connection conectar() throws SQLException {
 
