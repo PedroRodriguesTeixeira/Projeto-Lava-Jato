@@ -33,7 +33,7 @@ usuário padrão para login:
 
 ## 3. Configurar a conexão com o banco
 
-Abra o arquivo `src/util/Conexao.java` e ajuste, se precisar, o
+Abra o arquivo `src/main.java.util/Conexao.java` e ajuste, se precisar, o
 usuário e a senha do **seu** MySQL:
 
 ```java
@@ -49,7 +49,7 @@ de usuário, ajuste `URL` e `USER` também.
 
 ## 4. Rodar o sistema (CLI)
 
-No VS Code, abra `src/applications/Main.java` e rode (botão "Run" ou
+No VS Code, abra `src/main.java.applications/Main.java` e rode (botão "Run" ou
 `F5`). O programa vai:
 
 1. Testar a conexão com o banco.
@@ -62,7 +62,7 @@ No VS Code, abra `src/applications/Main.java` e rode (botão "Run" ou
 
 A API é uma classe separada, feita só com recursos nativos do Java
 (`com.sun.net.httpserver`), sem framework nenhum. Para rodar, abra
-`src/api/ApiServer.java` no VS Code e execute (Run/F5). Ela sobe em:
+`src/main.java.api/ApiServer.java` no VS Code e execute (Run/F5). Ela sobe em:
 
 ```
 http://localhost:8080
