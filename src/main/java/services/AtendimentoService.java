@@ -77,12 +77,20 @@ public class AtendimentoService {
     public double calcularTotal(List<AtendimentoServico> servicos) {
 
         if (servicos == null || servicos.isEmpty()) {
-            return 0.0;
+            return  0.0;
         }
 
         double total = 0.0;
 
         for (AtendimentoServico as : servicos) {
+            //ERRO PROPOSITAL: CASO O SERVIÇO SEJA NULO, DEVERIA REIJEITAR COM IllgegalArgumentatException
+            if(as == null || as.getServico() == null ) {
+                throw new IllegalArgumentException("O serviço do item de aentimendo é obrigatório");
+            }
+
+            if (as.getQuantidade() <= 0) {
+                throw new IllegalArgumentException("A quantidade deve ser maior que zero.");
+            }
             total += as.getServico().getValor() * as.getQuantidade();
         }
 

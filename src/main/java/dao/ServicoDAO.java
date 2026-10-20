@@ -8,15 +8,15 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
-import model.Funcionario;
+import model.Servico;
 import util.Conexao;
 
-public class FuncionarioDAO {
+public class ServicoDAO {
 
     // CREATE
-    public void inserir(Funcionario funcionario) {
+    public void inserir(Servico servico) {
 
-        String sql = "INSERT INTO funcionario\n(nome, cargo, telefone)\nVALUES (?, ?, ?)\n";
+        String sql = "INSERT INTO servico\n(nome_servico, descricao, valor)\nVALUES (?, ?, ?)\n";
 
         try {
 
@@ -25,16 +25,16 @@ public class FuncionarioDAO {
             PreparedStatement stmt =
                     conn.prepareStatement(sql);
 
-            stmt.setString(1, funcionario.getNome());
-            stmt.setString(2, funcionario.getCargo());
-            stmt.setString(3, funcionario.getTelefone());
+            stmt.setString(1, servico.getNomeServico());
+            stmt.setString(2, servico.getDescricao());
+            stmt.setDouble(3, servico.getValor());
 
             stmt.executeUpdate();
 
             stmt.close();
             conn.close();
 
-            System.out.println("Funcionário cadastrado!");
+            System.out.println("Serviço cadastrado!");
 
         }
         catch (SQLException e) {
@@ -46,11 +46,11 @@ public class FuncionarioDAO {
     }
 
     // READ
-    public List<Funcionario> listar() {
+    public List<Servico> listar() {
 
-        List<Funcionario> funcionarios = new ArrayList<>();
+        List<Servico> servicos = new ArrayList<>();
 
-        String sql = "SELECT * FROM funcionario";
+        String sql = "SELECT * FROM servico";
 
         try {
 
@@ -63,21 +63,21 @@ public class FuncionarioDAO {
 
             while (rs.next()) {
 
-                Funcionario funcionario = new Funcionario();
+                Servico servico = new Servico();
 
-                funcionario.setIdFuncionario(
-                        rs.getInt("id_funcionario"));
+                servico.setIdServico(
+                        rs.getInt("id_servico"));
 
-                funcionario.setNome(
-                        rs.getString("nome"));
+                servico.setNomeServico(
+                        rs.getString("nome_servico"));
 
-                funcionario.setCargo(
-                        rs.getString("cargo"));
+                servico.setDescricao(
+                        rs.getString("descricao"));
 
-                funcionario.setTelefone(
-                        rs.getString("telefone"));
+                servico.setValor(
+                        rs.getDouble("valor"));
 
-                funcionarios.add(funcionario);
+                servicos.add(servico);
 
             }
 
@@ -92,14 +92,14 @@ public class FuncionarioDAO {
 
         }
 
-        return funcionarios;
+        return servicos;
 
     }
 
     // UPDATE
-    public void atualizar(Funcionario funcionario) {
+    public void atualizar(Servico servico) {
 
-        String sql = "UPDATE funcionario\nSET nome = ?,\n    cargo = ?,\n    telefone = ?\nWHERE id_funcionario = ?\n";
+        String sql = "UPDATE servico\nSET nome_servico = ?,\n    descricao = ?,\n    valor = ?\nWHERE id_servico = ?\n";
 
         try {
 
@@ -108,18 +108,18 @@ public class FuncionarioDAO {
             PreparedStatement stmt =
                     conn.prepareStatement(sql);
 
-            stmt.setString(1, funcionario.getNome());
-            stmt.setString(2, funcionario.getCargo());
-            stmt.setString(3, funcionario.getTelefone());
+            stmt.setString(1, servico.getNomeServico());
+            stmt.setString(2, servico.getDescricao());
+            stmt.setDouble(3, servico.getValor());
 
-            stmt.setInt(4, funcionario.getIdFuncionario());
+            stmt.setInt(4, servico.getIdServico());
 
             stmt.executeUpdate();
 
             stmt.close();
             conn.close();
 
-            System.out.println("Funcionário atualizado!");
+            System.out.println("Serviço atualizado!");
 
         }
         catch (SQLException e) {
@@ -131,10 +131,10 @@ public class FuncionarioDAO {
     }
 
     // DELETE
-    public void excluir(int idFuncionario) {
+    public void excluir(int idServico) {
 
         String sql =
-                "DELETE FROM funcionario WHERE id_funcionario = ?";
+                "DELETE FROM servico WHERE id_servico = ?";
 
         try {
 
@@ -143,14 +143,14 @@ public class FuncionarioDAO {
             PreparedStatement stmt =
                     conn.prepareStatement(sql);
 
-            stmt.setInt(1, idFuncionario);
+            stmt.setInt(1, idServico);
 
             stmt.executeUpdate();
 
             stmt.close();
             conn.close();
 
-            System.out.println("Funcionário removido!");
+            System.out.println("Serviço removido!");
 
         }
         catch (SQLException e) {
