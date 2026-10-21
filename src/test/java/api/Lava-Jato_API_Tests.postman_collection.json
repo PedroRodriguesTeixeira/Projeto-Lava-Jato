@@ -1,0 +1,2923 @@
+{
+  "info": {
+    "name": "Lava-Jato - Testes de API",
+    "description": "Testes de API do Sistema de Gerenciamento de Lava-Jato (Plano de Testes de API v1.0, 19/09/2026).\n\nPré-condições (valem para todos os casos):\n- PC-01: MySQL em execução com a base restaurada por crud_lavajato.sql.\n- PC-02: ApiServer em execução em http://localhost:8080 (variável baseUrl).\n- Não use a CLI durante a rodada (banco compartilhado).\n\nVariáveis de coleção:\n- baseUrl: URL base da API.\n- count_clientes, count_funcionarios, count_servicos: preencher com SELECT COUNT(*) de cada tabela antes da rodada (usadas no CT-API-LIS-001).\n- antes_*: uso interno dos scripts (contagem antes de cada envio).\n\nExecução: Collection Runner, 1 iteração, na ordem da coleção, sem reiniciar a API. Os resultados esperados seguem o contrato da seção 5.2 do plano.\nTeste reprovado = divergência entre a resposta e o contrato/plano, a registrar como defeito (DEF-API).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "CT-API-LOG-001 [Alta] Login com credenciais válidas",
+      "description": "RF01, HU01 cenário 1 (equivale a CT-E2E-002). Passa se status 200 e autenticado true.",
+      "item": [
+        {
+          "name": "POST /login (admin/1234)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"login\": \"admin\",\n  \"senha\": \"1234\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"autenticado é true\", function () { pm.expect(pm.response.json().autenticado).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "CT-API-LOG-002 [Alta] Credenciais inválidas são negadas",
+      "description": "RF01, HU01 cenário 2. Passa se os três retornarem 401 com a mensagem. Autenticar em D3 é defeito de severidade alta.",
+      "item": [
+        {
+          "name": "D1 - senha errada",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"login\": \"admin\",\n  \"senha\": \"0000\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 401\", function () { pm.response.to.have.status(401); });",
+                  "pm.test(\"Corpo conforme o contrato: autenticado false e mensagem de login ou senha inválidos\", function () {",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b.autenticado).to.eql(false);",
+                  "    pm.expect(b.mensagem).to.eql(\"Login ou senha inválidos.\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "D2 - login inexistente",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"login\": \"inexistente\",\n  \"senha\": \"1234\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 401\", function () { pm.response.to.have.status(401); });",
+                  "pm.test(\"Corpo conforme o contrato: autenticado false e mensagem de login ou senha inválidos\", function () {",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b.autenticado).to.eql(false);",
+                  "    pm.expect(b.mensagem).to.eql(\"Login ou senha inválidos.\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "D3 - injeção de SQL básica",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"login\": \"admin' OR '1'='1\",\n  \"senha\": \"x\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 401\", function () { pm.response.to.have.status(401); });",
+                  "pm.test(\"Corpo conforme o contrato: autenticado false e mensagem de login ou senha inválidos (autenticar em D3 é defeito de severidade alta)\", function () {",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b.autenticado).to.eql(false);",
+                  "    pm.expect(b.mensagem).to.eql(\"Login ou senha inválidos.\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "CT-API-LOG-003 [Média] Credenciais ausentes ou corpo vazio",
+      "description": "Passa se o status for 4xx nos três e nenhum retornar autenticado true.",
+      "item": [
+        {
+          "name": "D1 - sem senha",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"login\": \"admin\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400 ou 401\", function () { pm.expect(pm.response.code).to.be.oneOf([400, 401]); });",
+                  "pm.test(\"Corpo com mensagem de erro\", function () {",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b.erro || b.mensagem, 'campo erro ou mensagem').to.be.a('string').and.not.be.empty;",
+                  "});",
+                  "pm.test(\"Não autenticou\", function () {",
+                  "    let b = {};",
+                  "    try { b = pm.response.json(); } catch (e) {}",
+                  "    pm.expect(b.autenticado).to.not.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "D2 - campos vazios",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"login\": \"\",\n  \"senha\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400 ou 401\", function () { pm.expect(pm.response.code).to.be.oneOf([400, 401]); });",
+                  "pm.test(\"Corpo com mensagem de erro\", function () {",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b.erro || b.mensagem, 'campo erro ou mensagem').to.be.a('string').and.not.be.empty;",
+                  "});",
+                  "pm.test(\"Não autenticou\", function () {",
+                  "    let b = {};",
+                  "    try { b = pm.response.json(); } catch (e) {}",
+                  "    pm.expect(b.autenticado).to.not.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "D3 - sem corpo",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "login"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400 ou 401\", function () { pm.expect(pm.response.code).to.be.oneOf([400, 401]); });",
+                  "pm.test(\"Corpo com mensagem de erro\", function () {",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b.erro || b.mensagem, 'campo erro ou mensagem').to.be.a('string').and.not.be.empty;",
+                  "});",
+                  "pm.test(\"Não autenticou\", function () {",
+                  "    let b = {};",
+                  "    try { b = pm.response.json(); } catch (e) {}",
+                  "    pm.expect(b.autenticado).to.not.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "CT-API-LIS-001 [Alta] Listagens de clientes, funcionários e serviços",
+      "description": "RF03, RF07, HU03. A quantidade de itens deve igualar SELECT COUNT(*) da tabela: rode os COUNT(*) no MySQL ANTES da rodada e preencha as variáveis de coleção count_clientes, count_funcionarios e count_servicos. Sem elas, a checagem fica como BLOQUEADA (skipped).",
+      "item": [
+        {
+          "name": "1. GET /clientes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/clientes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clientes"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resposta em JSON\", function () {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json');",
+                  "});",
+                  "pm.test(\"Corpo é uma lista JSON e cada item tem os campos: idCliente, nome, telefone, placa, modeloVeiculo, marcaVeiculo\", function () {",
+                  "    const lista = pm.response.json();",
+                  "    pm.expect(lista).to.be.an('array');",
+                  "    const campos = [\"idCliente\", \"nome\", \"telefone\", \"placa\", \"modeloVeiculo\", \"marcaVeiculo\"];",
+                  "    lista.forEach(function (it) {",
+                  "        campos.forEach(function (c) { pm.expect(it, 'campo ' + c).to.have.property(c); });",
+                  "    });",
+                  "});",
+                  "",
+                  "const esperado = pm.collectionVariables.get('count_clientes');",
+                  "if (esperado === undefined || esperado === null || String(esperado).trim() === '') {",
+                  "    pm.test.skip(\"Quantidade de itens = SELECT COUNT(*) (BLOQUEADO: preencha a variável de coleção count_clientes)\");",
+                  "} else {",
+                  "    pm.test(\"Quantidade de itens igual a SELECT COUNT(*) da tabela (count_clientes)\", function () {",
+                  "        pm.expect(pm.response.json().length).to.eql(Number(esperado));",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2. GET /funcionarios",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/funcionarios",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "funcionarios"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resposta em JSON\", function () {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json');",
+                  "});",
+                  "pm.test(\"Corpo é uma lista JSON e cada item tem os campos: idFuncionario, nome, cargo, telefone\", function () {",
+                  "    const lista = pm.response.json();",
+                  "    pm.expect(lista).to.be.an('array');",
+                  "    const campos = [\"idFuncionario\", \"nome\", \"cargo\", \"telefone\"];",
+                  "    lista.forEach(function (it) {",
+                  "        campos.forEach(function (c) { pm.expect(it, 'campo ' + c).to.have.property(c); });",
+                  "    });",
+                  "});",
+                  "",
+                  "const esperado = pm.collectionVariables.get('count_funcionarios');",
+                  "if (esperado === undefined || esperado === null || String(esperado).trim() === '') {",
+                  "    pm.test.skip(\"Quantidade de itens = SELECT COUNT(*) (BLOQUEADO: preencha a variável de coleção count_funcionarios)\");",
+                  "} else {",
+                  "    pm.test(\"Quantidade de itens igual a SELECT COUNT(*) da tabela (count_funcionarios)\", function () {",
+                  "        pm.expect(pm.response.json().length).to.eql(Number(esperado));",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3. GET /servicos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/servicos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servicos"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resposta em JSON\", function () {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json');",
+                  "});",
+                  "pm.test(\"Corpo é uma lista JSON e cada item tem os campos: idServico, nomeServico, descricao, valor\", function () {",
+                  "    const lista = pm.response.json();",
+                  "    pm.expect(lista).to.be.an('array');",
+                  "    const campos = [\"idServico\", \"nomeServico\", \"descricao\", \"valor\"];",
+                  "    lista.forEach(function (it) {",
+                  "        campos.forEach(function (c) { pm.expect(it, 'campo ' + c).to.have.property(c); });",
+                  "    });",
+                  "});",
+                  "",
+                  "const esperado = pm.collectionVariables.get('count_servicos');",
+                  "if (esperado === undefined || esperado === null || String(esperado).trim() === '') {",
+                  "    pm.test.skip(\"Quantidade de itens = SELECT COUNT(*) (BLOQUEADO: preencha a variável de coleção count_servicos)\");",
+                  "} else {",
+                  "    pm.test(\"Quantidade de itens igual a SELECT COUNT(*) da tabela (count_servicos)\", function () {",
+                  "        pm.expect(pm.response.json().length).to.eql(Number(esperado));",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "CT-API-CLI-001 [Alta] Cadastrar cliente válido, com acentos, e conferir na listagem",
+      "description": "RF02, HU02 (equivale a CT-E2E-CLI-001). A conferência direta no banco (SELECT) é manual; aqui a listagem da API é o indicador do que foi gravado.",
+      "item": [
+        {
+          "name": "1. POST /clientes (José Antônio Conceição)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/clientes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clientes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"José Antônio Conceição\",\n  \"telefone\": \"61977776666\",\n  \"placa\": \"MNO4321\",\n  \"modeloVeiculo\": \"Fusca\",\n  \"marcaVeiculo\": \"Volkswagen\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('antes_clientes', '');",
+                  "pm.sendRequest({ url: pm.variables.get('baseUrl') + '/clientes', method: 'GET' }, function (err, res) {",
+                  "    if (!err && res && res.code === 200) {",
+                  "        try { pm.collectionVariables.set('antes_clientes', String(res.json().length)); } catch (e) {}",
+                  "    }",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", function () { pm.response.to.have.status(201); });",
+                  "pm.test(\"Corpo conforme o contrato: mensagem de cadastro com sucesso\", function () {",
+                  "    pm.expect(pm.response.json().mensagem).to.eql(\"Cliente cadastrado com sucesso.\");",
+                  "});",
+                  "",
+                  "pm.sendRequest({ url: pm.variables.get('baseUrl') + '/clientes', method: 'GET' }, function (err, res) {",
+                  "    pm.test(\"Um registro novo foi gravado em /clientes (+1)\", function () {",
+                  "        pm.expect(err, 'GET de conferência em /clientes falhou').to.be.null;",
+                  "        pm.expect(res.code).to.eql(200);",
+                  "        const antes = pm.collectionVariables.get('antes_clientes');",
+                  "        pm.expect(antes, 'contagem anterior indisponível').to.match(/^\\d+$/);",
+                  "        const lista = res.json();",
+                  "        pm.expect(lista.length).to.eql(Number(antes) + 1);",
+                  "",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2. GET /clientes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/clientes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clientes"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Cliente aparece na listagem com os dados exatos, sem caracteres corrompidos\", function () {",
+                  "    const lista = pm.response.json();",
+                  "    const achados = lista.filter(function (c) { return c.nome === \"José Antônio Conceição\"; });",
+                  "    pm.expect(achados.length, 'cliente na listagem com nome exatamente igual').to.be.above(0);",
+                  "    const c = achados[achados.length - 1];",
+                  "    pm.expect(c.telefone).to.eql(\"61977776666\");",
+                  "    pm.expect(c.modeloVeiculo).to.eql(\"Fusca\");",
+                  "    pm.expect(c.marcaVeiculo).to.eql(\"Volkswagen\");",
+                  "    pm.expect(String(c.placa).replace(/[^A-Za-z0-9]/g, '').toUpperCase()).to.eql(\"MNO4321\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "CT-API-CLI-002 [Média] Placa inválida é rejeitada",
+      "description": "Equivale a CT-E2E-CLI-002. Passa se retornar 400 e nada for gravado em D1 e D2.",
+      "item": [
+        {
+          "name": "D1 - placa curta demais (AB12)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/clientes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clientes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Bruno Teste\",\n  \"telefone\": \"61999998888\",\n  \"placa\": \"AB12\",\n  \"modeloVeiculo\": \"Gol\",\n  \"marcaVeiculo\": \"Volkswagen\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('antes_clientes', '');",
+                  "pm.sendRequest({ url: pm.variables.get('baseUrl') + '/clientes', method: 'GET' }, function (err, res) {",
+                  "    if (!err && res && res.code === 200) {",
+                  "        try { pm.collectionVariables.set('antes_clientes', String(res.json().length)); } catch (e) {}",
+                  "    }",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", function () { pm.response.to.have.status(400); });",
+                  "pm.test(\"Corpo JSON com a chave erro e mensagem preenchida\", function () {",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b).to.have.property('erro');",
+                  "    pm.expect(b.erro).to.be.a('string').and.not.be.empty;",
+                  "});",
+                  "pm.test(\"Mensagem compreensível, sem texto técnico de exceção Java (se falhar: reprovado quanto ao tratamento, severidade média)\", function () {",
+                  "    pm.expect(String(pm.response.json().erro)).to.not.match(/Exception|For input string|java\\.|NumberFormat/i);",
+                  "});",
+                  "pm.test(\"Mensagem indica o campo: placa\", function () { pm.expect(String(pm.response.json().erro)).to.match(/placa/i); });",
+                  "",
+                  "pm.sendRequest({ url: pm.variables.get('baseUrl') + '/clientes', method: 'GET' }, function (err, res) {",
+                  "    pm.test(\"Nada gravado: a quantidade de registros em /clientes não mudou (GET /clientes após o envio)\", function () {",
+                  "        pm.expect(err, 'GET de conferência em /clientes falhou').to.be.null;",
+                  "        pm.expect(res.code).to.eql(200);",
+                  "        const antes = pm.collectionVariables.get('antes_clientes');",
+                  "        pm.expect(antes, 'contagem anterior indisponível').to.match(/^\\d+$/);",
+                  "        const lista = res.json();",
+                  "        pm.expect(lista.length).to.eql(Number(antes) + 0);",
+                  "",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "D2 - números antes das letras (1234ABC)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/clientes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clientes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Bruno Teste\",\n  \"telefone\": \"61999998888\",\n  \"placa\": \"1234ABC\",\n  \"modeloVeiculo\": \"Gol\",\n  \"marcaVeiculo\": \"Volkswagen\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('antes_clientes', '');",
+                  "pm.sendRequest({ url: pm.variables.get('baseUrl') + '/clientes', method: 'GET' }, function (err, res) {",
+                  "    if (!err && res && res.code === 200) {",
+                  "        try { pm.collectionVariables.set('antes_clientes', String(res.json().length)); } catch (e) {}",
+                  "    }",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", function () { pm.response.to.have.status(400); });",
+                  "pm.test(\"Corpo JSON com a chave erro e mensagem preenchida\", function () {",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b).to.have.property('erro');",
+                  "    pm.expect(b.erro).to.be.a('string').and.not.be.empty;",
+                  "});",
+                  "pm.test(\"Mensagem compreensível, sem texto técnico de exceção Java (se falhar: reprovado quanto ao tratamento, severidade média)\", function () {",
+                  "    pm.expect(String(pm.response.json().erro)).to.not.match(/Exception|For input string|java\\.|NumberFormat/i);",
+                  "});",
+                  "pm.test(\"Mensagem indica o campo: placa\", function () { pm.expect(String(pm.response.json().erro)).to.match(/placa/i); });",
+                  "",
+                  "pm.sendRequest({ url: pm.variables.get('baseUrl') + '/clientes', method: 'GET' }, function (err, res) {",
+                  "    pm.test(\"Nada gravado: a quantidade de registros em /clientes não mudou (GET /clientes após o envio)\", function () {",
+                  "        pm.expect(err, 'GET de conferência em /clientes falhou').to.be.null;",
+                  "        pm.expect(res.code).to.eql(200);",
+                  "        const antes = pm.collectionVariables.get('antes_clientes');",
+                  "        pm.expect(antes, 'contagem anterior indisponível').to.match(/^\\d+$/);",
+                  "        const lista = res.json();",
+                  "        pm.expect(lista.length).to.eql(Number(antes) + 0);",
+                  "",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "CT-API-CLI-003 [Média] Campo obrigatório ausente ou vazio",
+      "description": "HU02: o cadastro não conclui com dado obrigatório ausente. Passa se retornar 400 nos quatro e nenhum registro novo existir.",
+      "item": [
+        {
+          "name": "D1 - nome vazio",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/clientes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clientes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"\",\n  \"telefone\": \"61999998888\",\n  \"placa\": \"KJH9876\",\n  \"modeloVeiculo\": \"Gol\",\n  \"marcaVeiculo\": \"Volkswagen\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('antes_clientes', '');",
+                  "pm.sendRequest({ url: pm.variables.get('baseUrl') + '/clientes', method: 'GET' }, function (err, res) {",
+                  "    if (!err && res && res.code === 200) {",
+                  "        try { pm.collectionVariables.set('antes_clientes', String(res.json().length)); } catch (e) {}",
+                  "    }",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", function () { pm.response.to.have.status(400); });",
+                  "pm.test(\"Corpo JSON com a chave erro e mensagem preenchida\", function () {",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b).to.have.property('erro');",
+                  "    pm.expect(b.erro).to.be.a('string').and.not.be.empty;",
+                  "});",
+                  "pm.test(\"Mensagem compreensível, sem texto técnico de exceção Java (se falhar: reprovado quanto ao tratamento, severidade média)\", function () {",
+                  "    pm.expect(String(pm.response.json().erro)).to.not.match(/Exception|For input string|java\\.|NumberFormat/i);",
+                  "});",
+                  "pm.test(\"Mensagem indica o campo: nome\", function () { pm.expect(String(pm.response.json().erro)).to.match(/nome/i); });",
+                  "",
+                  "pm.sendRequest({ url: pm.variables.get('baseUrl') + '/clientes', method: 'GET' }, function (err, res) {",
+                  "    pm.test(\"Nada gravado: a quantidade de registros em /clientes não mudou\", function () {",
+                  "        pm.expect(err, 'GET de conferência em /clientes falhou').to.be.null;",
+                  "        pm.expect(res.code).to.eql(200);",
+                  "        const antes = pm.collectionVariables.get('antes_clientes');",
+                  "        pm.expect(antes, 'contagem anterior indisponível').to.match(/^\\d+$/);",
+                  "        const lista = res.json();",
+                  "        pm.expect(lista.length).to.eql(Number(antes) + 0);",
+                  "",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "D2 - telefone omitido",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/clientes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clientes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Bruno Teste\",\n  \"placa\": \"KJH9876\",\n  \"modeloVeiculo\": \"Gol\",\n  \"marcaVeiculo\": \"Volkswagen\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('antes_clientes', '');",
+                  "pm.sendRequest({ url: pm.variables.get('baseUrl') + '/clientes', method: 'GET' }, function (err, res) {",
+                  "    if (!err && res && res.code === 200) {",
+                  "        try { pm.collectionVariables.set('antes_clientes', String(res.json().length)); } catch (e) {}",
+                  "    }",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", function () { pm.response.to.have.status(400); });",
+                  "pm.test(\"Corpo JSON com a chave erro e mensagem preenchida\", function () {",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b).to.have.property('erro');",
+                  "    pm.expect(b.erro).to.be.a('string').and.not.be.empty;",
+                  "});",
+                  "pm.test(\"Mensagem compreensível, sem texto técnico de exceção Java (se falhar: reprovado quanto ao tratamento, severidade média)\", function () {",
+                  "    pm.expect(String(pm.response.json().erro)).to.not.match(/Exception|For input string|java\\.|NumberFormat/i);",
+                  "});",
+                  "pm.test(\"Mensagem indica o campo: telefone\", function () { pm.expect(String(pm.response.json().erro)).to.match(/telefone/i); });",
+                  "",
+                  "pm.sendRequest({ url: pm.variables.get('baseUrl') + '/clientes', method: 'GET' }, function (err, res) {",
+                  "    pm.test(\"Nada gravado: a quantidade de registros em /clientes não mudou\", function () {",
+                  "        pm.expect(err, 'GET de conferência em /clientes falhou').to.be.null;",
+                  "        pm.expect(res.code).to.eql(200);",
+                  "        const antes = pm.collectionVariables.get('antes_clientes');",
+                  "        pm.expect(antes, 'contagem anterior indisponível').to.match(/^\\d+$/);",
+                  "        const lista = res.json();",
+                  "        pm.expect(lista.length).to.eql(Number(antes) + 0);",
+                  "",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "D3 - placa omitida",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/clientes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clientes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Bruno Teste\",\n  \"telefone\": \"61999998888\",\n  \"modeloVeiculo\": \"Gol\",\n  \"marcaVeiculo\": \"Volkswagen\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('antes_clientes', '');",
+                  "pm.sendRequest({ url: pm.variables.get('baseUrl') + '/clientes', method: 'GET' }, function (err, res) {",
+                  "    if (!err && res && res.code === 200) {",
+                  "        try { pm.collectionVariables.set('antes_clientes', String(res.json().length)); } catch (e) {}",
+                  "    }",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", function () { pm.response.to.have.status(400); });",
+                  "pm.test(\"Corpo JSON com a chave erro e mensagem preenchida\", function () {",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b).to.have.property('erro');",
+                  "    pm.expect(b.erro).to.be.a('string').and.not.be.empty;",
+                  "});",
+                  "pm.test(\"Mensagem compreensível, sem texto técnico de exceção Java (se falhar: reprovado quanto ao tratamento, severidade média)\", function () {",
+                  "    pm.expect(String(pm.response.json().erro)).to.not.match(/Exception|For input string|java\\.|NumberFormat/i);",
+                  "});",
+                  "pm.test(\"Mensagem indica o campo: placa\", function () { pm.expect(String(pm.response.json().erro)).to.match(/placa/i); });",
+                  "",
+                  "pm.sendRequest({ url: pm.variables.get('baseUrl') + '/clientes', method: 'GET' }, function (err, res) {",
+                  "    pm.test(\"Nada gravado: a quantidade de registros em /clientes não mudou\", function () {",
+                  "        pm.expect(err, 'GET de conferência em /clientes falhou').to.be.null;",
+                  "        pm.expect(res.code).to.eql(200);",
+                  "        const antes = pm.collectionVariables.get('antes_clientes');",
+                  "        pm.expect(antes, 'contagem anterior indisponível').to.match(/^\\d+$/);",
+                  "        const lista = res.json();",
+                  "        pm.expect(lista.length).to.eql(Number(antes) + 0);",
+                  "",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "D4 - modeloVeiculo omitido",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/clientes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clientes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Bruno Teste\",\n  \"telefone\": \"61999998888\",\n  \"placa\": \"KJH9876\",\n  \"marcaVeiculo\": \"Volkswagen\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('antes_clientes', '');",
+                  "pm.sendRequest({ url: pm.variables.get('baseUrl') + '/clientes', method: 'GET' }, function (err, res) {",
+                  "    if (!err && res && res.code === 200) {",
+                  "        try { pm.collectionVariables.set('antes_clientes', String(res.json().length)); } catch (e) {}",
+                  "    }",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", function () { pm.response.to.have.status(400); });",
+                  "pm.test(\"Corpo JSON com a chave erro e mensagem preenchida\", function () {",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b).to.have.property('erro');",
+                  "    pm.expect(b.erro).to.be.a('string').and.not.be.empty;",
+                  "});",
+                  "pm.test(\"Mensagem compreensível, sem texto técnico de exceção Java (se falhar: reprovado quanto ao tratamento, severidade média)\", function () {",
+                  "    pm.expect(String(pm.response.json().erro)).to.not.match(/Exception|For input string|java\\.|NumberFormat/i);",
+                  "});",
+                  "pm.test(\"Mensagem indica o campo: modelo\", function () { pm.expect(String(pm.response.json().erro)).to.match(/modelo/i); });",
+                  "",
+                  "pm.sendRequest({ url: pm.variables.get('baseUrl') + '/clientes', method: 'GET' }, function (err, res) {",
+                  "    pm.test(\"Nada gravado: a quantidade de registros em /clientes não mudou\", function () {",
+                  "        pm.expect(err, 'GET de conferência em /clientes falhou').to.be.null;",
+                  "        pm.expect(res.code).to.eql(200);",
+                  "        const antes = pm.collectionVariables.get('antes_clientes');",
+                  "        pm.expect(antes, 'contagem anterior indisponível').to.match(/^\\d+$/);",
+                  "        const lista = res.json();",
+                  "        pm.expect(lista.length).to.eql(Number(antes) + 0);",
+                  "",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "CT-API-FUN-001 [Média] Cadastrar funcionário válido e conferir na listagem",
+      "description": "Sem RF na visão (equivale a CT-E2E-FUN-001).",
+      "item": [
+        {
+          "name": "1. POST /funcionarios (Carlos Teste)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/funcionarios",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "funcionarios"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Carlos Teste\",\n  \"cargo\": \"Lavador\",\n  \"telefone\": \"61988887777\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('antes_funcionarios', '');",
+                  "pm.sendRequest({ url: pm.variables.get('baseUrl') + '/funcionarios', method: 'GET' }, function (err, res) {",
+                  "    if (!err && res && res.code === 200) {",
+                  "        try { pm.collectionVariables.set('antes_funcionarios', String(res.json().length)); } catch (e) {}",
+                  "    }",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", function () { pm.response.to.have.status(201); });",
+                  "pm.test(\"Corpo conforme o contrato: mensagem de cadastro com sucesso\", function () {",
+                  "    pm.expect(pm.response.json().mensagem).to.eql(\"Funcionário cadastrado com sucesso.\");",
+                  "});",
+                  "",
+                  "pm.sendRequest({ url: pm.variables.get('baseUrl') + '/funcionarios', method: 'GET' }, function (err, res) {",
+                  "    pm.test(\"Um registro novo foi gravado em /funcionarios (+1)\", function () {",
+                  "        pm.expect(err, 'GET de conferência em /funcionarios falhou').to.be.null;",
+                  "        pm.expect(res.code).to.eql(200);",
+                  "        const antes = pm.collectionVariables.get('antes_funcionarios');",
+                  "        pm.expect(antes, 'contagem anterior indisponível').to.match(/^\\d+$/);",
+                  "        const lista = res.json();",
+                  "        pm.expect(lista.length).to.eql(Number(antes) + 1);",
+                  "",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2. GET /funcionarios",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/funcionarios",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "funcionarios"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Funcionário aparece na listagem com os dados enviados\", function () {",
+                  "    const achados = pm.response.json().filter(function (f) { return f.nome === \"Carlos Teste\"; });",
+                  "    pm.expect(achados.length, 'funcionário na listagem').to.be.above(0);",
+                  "    const f = achados[achados.length - 1];",
+                  "    pm.expect(f.cargo).to.eql(\"Lavador\");",
+                  "    pm.expect(f.telefone).to.eql(\"61988887777\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "CT-API-FUN-002 [Média] Campo obrigatório vazio",
+      "description": "Equivale a CT-E2E-FUN-002 a 004. Passa se retornar 400 nos três e nenhum registro novo existir.",
+      "item": [
+        {
+          "name": "D1 - nome vazio",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/funcionarios",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "funcionarios"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"\",\n  \"cargo\": \"Lavador\",\n  \"telefone\": \"61988887777\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('antes_funcionarios', '');",
+                  "pm.sendRequest({ url: pm.variables.get('baseUrl') + '/funcionarios', method: 'GET' }, function (err, res) {",
+                  "    if (!err && res && res.code === 200) {",
+                  "        try { pm.collectionVariables.set('antes_funcionarios', String(res.json().length)); } catch (e) {}",
+                  "    }",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", function () { pm.response.to.have.status(400); });",
+                  "pm.test(\"Corpo JSON com a chave erro e mensagem preenchida\", function () {",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b).to.have.property('erro');",
+                  "    pm.expect(b.erro).to.be.a('string').and.not.be.empty;",
+                  "});",
+                  "pm.test(\"Mensagem compreensível, sem texto técnico de exceção Java (se falhar: reprovado quanto ao tratamento, severidade média)\", function () {",
+                  "    pm.expect(String(pm.response.json().erro)).to.not.match(/Exception|For input string|java\\.|NumberFormat/i);",
+                  "});",
+                  "pm.test(\"Mensagem indica o campo: nome\", function () { pm.expect(String(pm.response.json().erro)).to.match(/nome/i); });",
+                  "",
+                  "pm.sendRequest({ url: pm.variables.get('baseUrl') + '/funcionarios', method: 'GET' }, function (err, res) {",
+                  "    pm.test(\"Nada gravado: a quantidade de registros em /funcionarios não mudou\", function () {",
+                  "        pm.expect(err, 'GET de conferência em /funcionarios falhou').to.be.null;",
+                  "        pm.expect(res.code).to.eql(200);",
+                  "        const antes = pm.collectionVariables.get('antes_funcionarios');",
+                  "        pm.expect(antes, 'contagem anterior indisponível').to.match(/^\\d+$/);",
+                  "        const lista = res.json();",
+                  "        pm.expect(lista.length).to.eql(Number(antes) + 0);",
+                  "",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "D2 - cargo vazio",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/funcionarios",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "funcionarios"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Carlos Teste\",\n  \"cargo\": \"\",\n  \"telefone\": \"61988887777\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('antes_funcionarios', '');",
+                  "pm.sendRequest({ url: pm.variables.get('baseUrl') + '/funcionarios', method: 'GET' }, function (err, res) {",
+                  "    if (!err && res && res.code === 200) {",
+                  "        try { pm.collectionVariables.set('antes_funcionarios', String(res.json().length)); } catch (e) {}",
+                  "    }",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", function () { pm.response.to.have.status(400); });",
+                  "pm.test(\"Corpo JSON com a chave erro e mensagem preenchida\", function () {",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b).to.have.property('erro');",
+                  "    pm.expect(b.erro).to.be.a('string').and.not.be.empty;",
+                  "});",
+                  "pm.test(\"Mensagem compreensível, sem texto técnico de exceção Java (se falhar: reprovado quanto ao tratamento, severidade média)\", function () {",
+                  "    pm.expect(String(pm.response.json().erro)).to.not.match(/Exception|For input string|java\\.|NumberFormat/i);",
+                  "});",
+                  "pm.test(\"Mensagem indica o campo: cargo\", function () { pm.expect(String(pm.response.json().erro)).to.match(/cargo/i); });",
+                  "",
+                  "pm.sendRequest({ url: pm.variables.get('baseUrl') + '/funcionarios', method: 'GET' }, function (err, res) {",
+                  "    pm.test(\"Nada gravado: a quantidade de registros em /funcionarios não mudou\", function () {",
+                  "        pm.expect(err, 'GET de conferência em /funcionarios falhou').to.be.null;",
+                  "        pm.expect(res.code).to.eql(200);",
+                  "        const antes = pm.collectionVariables.get('antes_funcionarios');",
+                  "        pm.expect(antes, 'contagem anterior indisponível').to.match(/^\\d+$/);",
+                  "        const lista = res.json();",
+                  "        pm.expect(lista.length).to.eql(Number(antes) + 0);",
+                  "",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "D3 - telefone vazio",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/funcionarios",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "funcionarios"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Carlos Teste\",\n  \"cargo\": \"Lavador\",\n  \"telefone\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('antes_funcionarios', '');",
+                  "pm.sendRequest({ url: pm.variables.get('baseUrl') + '/funcionarios', method: 'GET' }, function (err, res) {",
+                  "    if (!err && res && res.code === 200) {",
+                  "        try { pm.collectionVariables.set('antes_funcionarios', String(res.json().length)); } catch (e) {}",
+                  "    }",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", function () { pm.response.to.have.status(400); });",
+                  "pm.test(\"Corpo JSON com a chave erro e mensagem preenchida\", function () {",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b).to.have.property('erro');",
+                  "    pm.expect(b.erro).to.be.a('string').and.not.be.empty;",
+                  "});",
+                  "pm.test(\"Mensagem compreensível, sem texto técnico de exceção Java (se falhar: reprovado quanto ao tratamento, severidade média)\", function () {",
+                  "    pm.expect(String(pm.response.json().erro)).to.not.match(/Exception|For input string|java\\.|NumberFormat/i);",
+                  "});",
+                  "pm.test(\"Mensagem indica o campo: telefone\", function () { pm.expect(String(pm.response.json().erro)).to.match(/telefone/i); });",
+                  "",
+                  "pm.sendRequest({ url: pm.variables.get('baseUrl') + '/funcionarios', method: 'GET' }, function (err, res) {",
+                  "    pm.test(\"Nada gravado: a quantidade de registros em /funcionarios não mudou\", function () {",
+                  "        pm.expect(err, 'GET de conferência em /funcionarios falhou').to.be.null;",
+                  "        pm.expect(res.code).to.eql(200);",
+                  "        const antes = pm.collectionVariables.get('antes_funcionarios');",
+                  "        pm.expect(antes, 'contagem anterior indisponível').to.match(/^\\d+$/);",
+                  "        const lista = res.json();",
+                  "        pm.expect(lista.length).to.eql(Number(antes) + 0);",
+                  "",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "CT-API-SER-001 [Alta] Cadastrar serviço válido, incluindo o valor mínimo",
+      "description": "RF06, HU02 (equivale a CT-E2E-SER-001). A lista deve trazer os valores 49.9 e 0.01 sem arredondamento.",
+      "item": [
+        {
+          "name": "D1 - valor 49.90",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servicos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servicos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nomeServico\": \"Lavagem simples\",\n  \"descricao\": \"Lavagem externa\",\n  \"valor\": 49.90\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('antes_servicos', '');",
+                  "pm.sendRequest({ url: pm.variables.get('baseUrl') + '/servicos', method: 'GET' }, function (err, res) {",
+                  "    if (!err && res && res.code === 200) {",
+                  "        try { pm.collectionVariables.set('antes_servicos', String(res.json().length)); } catch (e) {}",
+                  "    }",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", function () { pm.response.to.have.status(201); });",
+                  "pm.test(\"Corpo conforme o contrato: mensagem de cadastro com sucesso\", function () {",
+                  "    pm.expect(pm.response.json().mensagem).to.eql(\"Serviço cadastrado com sucesso.\");",
+                  "});",
+                  "",
+                  "pm.sendRequest({ url: pm.variables.get('baseUrl') + '/servicos', method: 'GET' }, function (err, res) {",
+                  "    pm.test(\"GET /servicos após o envio: +1 registro e valor listado igual ao enviado\", function () {",
+                  "        pm.expect(err, 'GET de conferência em /servicos falhou').to.be.null;",
+                  "        pm.expect(res.code).to.eql(200);",
+                  "        const antes = pm.collectionVariables.get('antes_servicos');",
+                  "        pm.expect(antes, 'contagem anterior indisponível').to.match(/^\\d+$/);",
+                  "        const lista = res.json();",
+                  "        pm.expect(lista.length).to.eql(Number(antes) + 1);",
+                  "        const ok = lista.some(function (s) { return s.nomeServico === \"Lavagem simples\" && Math.abs(Number(s.valor) - 49.90) < 1e-9; });",
+                  "        pm.expect(ok, 'serviço listado com valor numericamente igual ao enviado, sem arredondamento').to.be.true;",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "D2 (fronteira) - valor 0.01",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servicos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servicos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nomeServico\": \"Serviço mínimo\",\n  \"descricao\": \"Valor mínimo\",\n  \"valor\": 0.01\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('antes_servicos', '');",
+                  "pm.sendRequest({ url: pm.variables.get('baseUrl') + '/servicos', method: 'GET' }, function (err, res) {",
+                  "    if (!err && res && res.code === 200) {",
+                  "        try { pm.collectionVariables.set('antes_servicos', String(res.json().length)); } catch (e) {}",
+                  "    }",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", function () { pm.response.to.have.status(201); });",
+                  "pm.test(\"Corpo conforme o contrato: mensagem de cadastro com sucesso\", function () {",
+                  "    pm.expect(pm.response.json().mensagem).to.eql(\"Serviço cadastrado com sucesso.\");",
+                  "});",
+                  "",
+                  "pm.sendRequest({ url: pm.variables.get('baseUrl') + '/servicos', method: 'GET' }, function (err, res) {",
+                  "    pm.test(\"GET /servicos após o envio: +1 registro e valor listado igual ao enviado\", function () {",
+                  "        pm.expect(err, 'GET de conferência em /servicos falhou').to.be.null;",
+                  "        pm.expect(res.code).to.eql(200);",
+                  "        const antes = pm.collectionVariables.get('antes_servicos');",
+                  "        pm.expect(antes, 'contagem anterior indisponível').to.match(/^\\d+$/);",
+                  "        const lista = res.json();",
+                  "        pm.expect(lista.length).to.eql(Number(antes) + 1);",
+                  "        const ok = lista.some(function (s) { return s.nomeServico === \"Serviço mínimo\" && Math.abs(Number(s.valor) - 0.01) < 1e-9; });",
+                  "        pm.expect(ok, 'serviço listado com valor numericamente igual ao enviado, sem arredondamento').to.be.true;",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "CT-API-SER-002 [Alta] Valor inválido é rejeitado",
+      "description": "Equivale a CT-E2E-SER-003 e 004. Passa se os seis retornarem 400 e nada for gravado. Mensagem com texto de exceção (For input string) reprova quanto ao tratamento (severidade média). Status 2xx ou conexão sem resposta é defeito.",
+      "item": [
+        {
+          "name": "D1 - valor 0",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servicos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servicos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nomeServico\": \"Serviço teste\",\n  \"descricao\": \"Valor inválido\",\n  \"valor\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('antes_servicos', '');",
+                  "pm.sendRequest({ url: pm.variables.get('baseUrl') + '/servicos', method: 'GET' }, function (err, res) {",
+                  "    if (!err && res && res.code === 200) {",
+                  "        try { pm.collectionVariables.set('antes_servicos', String(res.json().length)); } catch (e) {}",
+                  "    }",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", function () { pm.response.to.have.status(400); });",
+                  "pm.test(\"Corpo JSON com a chave erro e mensagem preenchida\", function () {",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b).to.have.property('erro');",
+                  "    pm.expect(b.erro).to.be.a('string').and.not.be.empty;",
+                  "});",
+                  "pm.test(\"Mensagem compreensível, sem texto técnico de exceção Java (se falhar: reprovado quanto ao tratamento, severidade média)\", function () {",
+                  "    pm.expect(String(pm.response.json().erro)).to.not.match(/Exception|For input string|java\\.|NumberFormat/i);",
+                  "});",
+                  "",
+                  "pm.sendRequest({ url: pm.variables.get('baseUrl') + '/servicos', method: 'GET' }, function (err, res) {",
+                  "    pm.test(\"Nada gravado: a quantidade de registros em /servicos não mudou\", function () {",
+                  "        pm.expect(err, 'GET de conferência em /servicos falhou').to.be.null;",
+                  "        pm.expect(res.code).to.eql(200);",
+                  "        const antes = pm.collectionVariables.get('antes_servicos');",
+                  "        pm.expect(antes, 'contagem anterior indisponível').to.match(/^\\d+$/);",
+                  "        const lista = res.json();",
+                  "        pm.expect(lista.length).to.eql(Number(antes) + 0);",
+                  "",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "D2 - valor -10",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servicos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servicos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nomeServico\": \"Serviço teste\",\n  \"descricao\": \"Valor inválido\",\n  \"valor\": -10\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('antes_servicos', '');",
+                  "pm.sendRequest({ url: pm.variables.get('baseUrl') + '/servicos', method: 'GET' }, function (err, res) {",
+                  "    if (!err && res && res.code === 200) {",
+                  "        try { pm.collectionVariables.set('antes_servicos', String(res.json().length)); } catch (e) {}",
+                  "    }",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", function () { pm.response.to.have.status(400); });",
+                  "pm.test(\"Corpo JSON com a chave erro e mensagem preenchida\", function () {",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b).to.have.property('erro');",
+                  "    pm.expect(b.erro).to.be.a('string').and.not.be.empty;",
+                  "});",
+                  "pm.test(\"Mensagem compreensível, sem texto técnico de exceção Java (se falhar: reprovado quanto ao tratamento, severidade média)\", function () {",
+                  "    pm.expect(String(pm.response.json().erro)).to.not.match(/Exception|For input string|java\\.|NumberFormat/i);",
+                  "});",
+                  "",
+                  "pm.sendRequest({ url: pm.variables.get('baseUrl') + '/servicos', method: 'GET' }, function (err, res) {",
+                  "    pm.test(\"Nada gravado: a quantidade de registros em /servicos não mudou\", function () {",
+                  "        pm.expect(err, 'GET de conferência em /servicos falhou').to.be.null;",
+                  "        pm.expect(res.code).to.eql(200);",
+                  "        const antes = pm.collectionVariables.get('antes_servicos');",
+                  "        pm.expect(antes, 'contagem anterior indisponível').to.match(/^\\d+$/);",
+                  "        const lista = res.json();",
+                  "        pm.expect(lista.length).to.eql(Number(antes) + 0);",
+                  "",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "D3 - valor texto \"abc\"",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servicos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servicos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nomeServico\": \"Serviço teste\",\n  \"descricao\": \"Valor inválido\",\n  \"valor\": \"abc\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('antes_servicos', '');",
+                  "pm.sendRequest({ url: pm.variables.get('baseUrl') + '/servicos', method: 'GET' }, function (err, res) {",
+                  "    if (!err && res && res.code === 200) {",
+                  "        try { pm.collectionVariables.set('antes_servicos', String(res.json().length)); } catch (e) {}",
+                  "    }",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", function () { pm.response.to.have.status(400); });",
+                  "pm.test(\"Corpo JSON com a chave erro e mensagem preenchida\", function () {",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b).to.have.property('erro');",
+                  "    pm.expect(b.erro).to.be.a('string').and.not.be.empty;",
+                  "});",
+                  "pm.test(\"Mensagem compreensível, sem texto técnico de exceção Java (se falhar: reprovado quanto ao tratamento, severidade média)\", function () {",
+                  "    pm.expect(String(pm.response.json().erro)).to.not.match(/Exception|For input string|java\\.|NumberFormat/i);",
+                  "});",
+                  "",
+                  "pm.sendRequest({ url: pm.variables.get('baseUrl') + '/servicos', method: 'GET' }, function (err, res) {",
+                  "    pm.test(\"Nada gravado: a quantidade de registros em /servicos não mudou\", function () {",
+                  "        pm.expect(err, 'GET de conferência em /servicos falhou').to.be.null;",
+                  "        pm.expect(res.code).to.eql(200);",
+                  "        const antes = pm.collectionVariables.get('antes_servicos');",
+                  "        pm.expect(antes, 'contagem anterior indisponível').to.match(/^\\d+$/);",
+                  "        const lista = res.json();",
+                  "        pm.expect(lista.length).to.eql(Number(antes) + 0);",
+                  "",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "D4 - campo valor omitido",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servicos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servicos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nomeServico\": \"Serviço teste\",\n  \"descricao\": \"Valor inválido\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('antes_servicos', '');",
+                  "pm.sendRequest({ url: pm.variables.get('baseUrl') + '/servicos', method: 'GET' }, function (err, res) {",
+                  "    if (!err && res && res.code === 200) {",
+                  "        try { pm.collectionVariables.set('antes_servicos', String(res.json().length)); } catch (e) {}",
+                  "    }",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", function () { pm.response.to.have.status(400); });",
+                  "pm.test(\"Corpo JSON com a chave erro e mensagem preenchida\", function () {",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b).to.have.property('erro');",
+                  "    pm.expect(b.erro).to.be.a('string').and.not.be.empty;",
+                  "});",
+                  "pm.test(\"Mensagem compreensível, sem texto técnico de exceção Java (se falhar: reprovado quanto ao tratamento, severidade média)\", function () {",
+                  "    pm.expect(String(pm.response.json().erro)).to.not.match(/Exception|For input string|java\\.|NumberFormat/i);",
+                  "});",
+                  "",
+                  "pm.sendRequest({ url: pm.variables.get('baseUrl') + '/servicos', method: 'GET' }, function (err, res) {",
+                  "    pm.test(\"Nada gravado: a quantidade de registros em /servicos não mudou\", function () {",
+                  "        pm.expect(err, 'GET de conferência em /servicos falhou').to.be.null;",
+                  "        pm.expect(res.code).to.eql(200);",
+                  "        const antes = pm.collectionVariables.get('antes_servicos');",
+                  "        pm.expect(antes, 'contagem anterior indisponível').to.match(/^\\d+$/);",
+                  "        const lista = res.json();",
+                  "        pm.expect(lista.length).to.eql(Number(antes) + 0);",
+                  "",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "D5 - vírgula decimal sem aspas (49,90)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servicos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servicos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nomeServico\": \"Serviço teste\",\n  \"descricao\": \"Valor inválido\",\n  \"valor\": 49,90\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('antes_servicos', '');",
+                  "pm.sendRequest({ url: pm.variables.get('baseUrl') + '/servicos', method: 'GET' }, function (err, res) {",
+                  "    if (!err && res && res.code === 200) {",
+                  "        try { pm.collectionVariables.set('antes_servicos', String(res.json().length)); } catch (e) {}",
+                  "    }",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", function () { pm.response.to.have.status(400); });",
+                  "pm.test(\"Corpo JSON com a chave erro e mensagem preenchida\", function () {",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b).to.have.property('erro');",
+                  "    pm.expect(b.erro).to.be.a('string').and.not.be.empty;",
+                  "});",
+                  "pm.test(\"Mensagem compreensível, sem texto técnico de exceção Java (se falhar: reprovado quanto ao tratamento, severidade média)\", function () {",
+                  "    pm.expect(String(pm.response.json().erro)).to.not.match(/Exception|For input string|java\\.|NumberFormat/i);",
+                  "});",
+                  "",
+                  "pm.sendRequest({ url: pm.variables.get('baseUrl') + '/servicos', method: 'GET' }, function (err, res) {",
+                  "    pm.test(\"Nada gravado: a quantidade de registros em /servicos não mudou (gravar D5 com valor 49 é severidade alta)\", function () {",
+                  "        pm.expect(err, 'GET de conferência em /servicos falhou').to.be.null;",
+                  "        pm.expect(res.code).to.eql(200);",
+                  "        const antes = pm.collectionVariables.get('antes_servicos');",
+                  "        pm.expect(antes, 'contagem anterior indisponível').to.match(/^\\d+$/);",
+                  "        const lista = res.json();",
+                  "        pm.expect(lista.length).to.eql(Number(antes) + 0);",
+                  "",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "D6 - valor \"NaN\"",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servicos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servicos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nomeServico\": \"Serviço teste\",\n  \"descricao\": \"Valor inválido\",\n  \"valor\": \"NaN\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('antes_servicos', '');",
+                  "pm.sendRequest({ url: pm.variables.get('baseUrl') + '/servicos', method: 'GET' }, function (err, res) {",
+                  "    if (!err && res && res.code === 200) {",
+                  "        try { pm.collectionVariables.set('antes_servicos', String(res.json().length)); } catch (e) {}",
+                  "    }",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", function () { pm.response.to.have.status(400); });",
+                  "pm.test(\"Corpo JSON com a chave erro e mensagem preenchida\", function () {",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b).to.have.property('erro');",
+                  "    pm.expect(b.erro).to.be.a('string').and.not.be.empty;",
+                  "});",
+                  "pm.test(\"Mensagem compreensível, sem texto técnico de exceção Java (se falhar: reprovado quanto ao tratamento, severidade média)\", function () {",
+                  "    pm.expect(String(pm.response.json().erro)).to.not.match(/Exception|For input string|java\\.|NumberFormat/i);",
+                  "});",
+                  "",
+                  "pm.sendRequest({ url: pm.variables.get('baseUrl') + '/servicos', method: 'GET' }, function (err, res) {",
+                  "    pm.test(\"Nada gravado: a quantidade de registros em /servicos não mudou\", function () {",
+                  "        pm.expect(err, 'GET de conferência em /servicos falhou').to.be.null;",
+                  "        pm.expect(res.code).to.eql(200);",
+                  "        const antes = pm.collectionVariables.get('antes_servicos');",
+                  "        pm.expect(antes, 'contagem anterior indisponível').to.match(/^\\d+$/);",
+                  "        const lista = res.json();",
+                  "        pm.expect(lista.length).to.eql(Number(antes) + 0);",
+                  "",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /servicos ao final",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/servicos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servicos"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resposta é uma lista JSON\", function () { pm.expect(pm.response.json()).to.be.an('array'); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "CT-API-SER-003 [Média] Campo obrigatório ausente",
+      "description": "HU02 e RF06 (nome e descrição). Passa se retornar 400 nos dois e nenhum registro novo existir.",
+      "item": [
+        {
+          "name": "D1 - nomeServico vazio",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servicos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servicos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nomeServico\": \"\",\n  \"descricao\": \"Lavagem externa\",\n  \"valor\": 30.00\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('antes_servicos', '');",
+                  "pm.sendRequest({ url: pm.variables.get('baseUrl') + '/servicos', method: 'GET' }, function (err, res) {",
+                  "    if (!err && res && res.code === 200) {",
+                  "        try { pm.collectionVariables.set('antes_servicos', String(res.json().length)); } catch (e) {}",
+                  "    }",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", function () { pm.response.to.have.status(400); });",
+                  "pm.test(\"Corpo JSON com a chave erro e mensagem preenchida\", function () {",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b).to.have.property('erro');",
+                  "    pm.expect(b.erro).to.be.a('string').and.not.be.empty;",
+                  "});",
+                  "pm.test(\"Mensagem compreensível, sem texto técnico de exceção Java (se falhar: reprovado quanto ao tratamento, severidade média)\", function () {",
+                  "    pm.expect(String(pm.response.json().erro)).to.not.match(/Exception|For input string|java\\.|NumberFormat/i);",
+                  "});",
+                  "pm.test(\"Mensagem indica o campo: nome do serviço\", function () { pm.expect(String(pm.response.json().erro)).to.match(/nome/i); });",
+                  "",
+                  "pm.sendRequest({ url: pm.variables.get('baseUrl') + '/servicos', method: 'GET' }, function (err, res) {",
+                  "    pm.test(\"Nada gravado: a quantidade de registros em /servicos não mudou\", function () {",
+                  "        pm.expect(err, 'GET de conferência em /servicos falhou').to.be.null;",
+                  "        pm.expect(res.code).to.eql(200);",
+                  "        const antes = pm.collectionVariables.get('antes_servicos');",
+                  "        pm.expect(antes, 'contagem anterior indisponível').to.match(/^\\d+$/);",
+                  "        const lista = res.json();",
+                  "        pm.expect(lista.length).to.eql(Number(antes) + 0);",
+                  "",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "D2 - descricao omitido",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servicos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servicos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nomeServico\": \"Lavagem simples\",\n  \"valor\": 30.00\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('antes_servicos', '');",
+                  "pm.sendRequest({ url: pm.variables.get('baseUrl') + '/servicos', method: 'GET' }, function (err, res) {",
+                  "    if (!err && res && res.code === 200) {",
+                  "        try { pm.collectionVariables.set('antes_servicos', String(res.json().length)); } catch (e) {}",
+                  "    }",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", function () { pm.response.to.have.status(400); });",
+                  "pm.test(\"Corpo JSON com a chave erro e mensagem preenchida\", function () {",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b).to.have.property('erro');",
+                  "    pm.expect(b.erro).to.be.a('string').and.not.be.empty;",
+                  "});",
+                  "pm.test(\"Mensagem compreensível, sem texto técnico de exceção Java (se falhar: reprovado quanto ao tratamento, severidade média)\", function () {",
+                  "    pm.expect(String(pm.response.json().erro)).to.not.match(/Exception|For input string|java\\.|NumberFormat/i);",
+                  "});",
+                  "pm.test(\"Mensagem indica o campo: descrição\", function () { pm.expect(String(pm.response.json().erro)).to.match(/descri/i); });",
+                  "",
+                  "pm.sendRequest({ url: pm.variables.get('baseUrl') + '/servicos', method: 'GET' }, function (err, res) {",
+                  "    pm.test(\"Nada gravado: a quantidade de registros em /servicos não mudou\", function () {",
+                  "        pm.expect(err, 'GET de conferência em /servicos falhou').to.be.null;",
+                  "        pm.expect(res.code).to.eql(200);",
+                  "        const antes = pm.collectionVariables.get('antes_servicos');",
+                  "        pm.expect(antes, 'contagem anterior indisponível').to.match(/^\\d+$/);",
+                  "        const lista = res.json();",
+                  "        pm.expect(lista.length).to.eql(Number(antes) + 0);",
+                  "",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "CT-API-INT-001 [Alta] Vírgula em campo de texto preserva o dado",
+      "description": "O parser JSON declara limitação com vírgulas. Passa se modeloVeiculo for exatamente \"Gol, 1.0 Flex\" e descricao exatamente \"Lavagem externa, interna e cera\" (na linha única, sem quebra).",
+      "item": [
+        {
+          "name": "1. POST /clientes (modelo com vírgula)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/clientes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clientes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Ana Teste\",\n  \"telefone\": \"61999998888\",\n  \"placa\": \"PQR1234\",\n  \"modeloVeiculo\": \"Gol, 1.0 Flex\",\n  \"marcaVeiculo\": \"Volkswagen\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", function () { pm.response.to.have.status(201); });",
+                  "pm.test(\"Corpo conforme o contrato: mensagem de cadastro com sucesso\", function () {",
+                  "    pm.expect(pm.response.json().mensagem).to.eql(\"Cliente cadastrado com sucesso.\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2. POST /servicos (descrição com vírgulas)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servicos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servicos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nomeServico\": \"Lavagem completa\",\n  \"descricao\": \"Lavagem externa, interna e cera\",\n  \"valor\": 80.00\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", function () { pm.response.to.have.status(201); });",
+                  "pm.test(\"Corpo conforme o contrato: mensagem de cadastro com sucesso\", function () {",
+                  "    pm.expect(pm.response.json().mensagem).to.eql(\"Serviço cadastrado com sucesso.\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3a. GET /clientes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/clientes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clientes"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"modeloVeiculo íntegro, com a vírgula (texto truncado ou com aspas sobrando: severidade alta)\", function () {",
+                  "    const achados = pm.response.json().filter(function (c) { return c.nome === \"Ana Teste\" && String(c.placa).replace(/[^A-Za-z0-9]/g, '').toUpperCase() === \"PQR1234\"; });",
+                  "    pm.expect(achados.length, 'cliente Ana Teste / PQR1234 na listagem').to.be.above(0);",
+                  "    pm.expect(achados[achados.length - 1].modeloVeiculo).to.eql(\"Gol, 1.0 Flex\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3b. GET /servicos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/servicos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servicos"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"descricao íntegra, com as vírgulas (texto truncado ou com aspas sobrando: severidade alta)\", function () {",
+                  "    const achados = pm.response.json().filter(function (s) { return s.nomeServico === \"Lavagem completa\"; });",
+                  "    pm.expect(achados.length, 'serviço Lavagem completa na listagem').to.be.above(0);",
+                  "    pm.expect(achados[achados.length - 1].descricao).to.eql(\"Lavagem externa, interna e cera\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "CT-API-ROB-001 [Média] Corpo malformado ou que não é JSON é rejeitado",
+      "description": "Passa se retornar 400 e nada for gravado.",
+      "item": [
+        {
+          "name": "D1 - JSON sem a chave de fechamento",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/clientes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clientes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"nome\":\"Ana Teste\",\n\"telefone\":\"61999998888\",\n\"placa\":\"STU5678\",\n\"modeloVeiculo\":\"Onix\",\n\"marcaVeiculo\":\"Chevrolet\"",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('antes_clientes', '');",
+                  "pm.sendRequest({ url: pm.variables.get('baseUrl') + '/clientes', method: 'GET' }, function (err, res) {",
+                  "    if (!err && res && res.code === 200) {",
+                  "        try { pm.collectionVariables.set('antes_clientes', String(res.json().length)); } catch (e) {}",
+                  "    }",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", function () { pm.response.to.have.status(400); });",
+                  "pm.sendRequest({ url: pm.variables.get('baseUrl') + '/clientes', method: 'GET' }, function (err, res) {",
+                  "    pm.test(\"Nada gravado: a quantidade de registros em /clientes não mudou (gravar o cliente em D1 é severidade média)\", function () {",
+                  "        pm.expect(err, 'GET de conferência em /clientes falhou').to.be.null;",
+                  "        pm.expect(res.code).to.eql(200);",
+                  "        const antes = pm.collectionVariables.get('antes_clientes');",
+                  "        pm.expect(antes, 'contagem anterior indisponível').to.match(/^\\d+$/);",
+                  "        const lista = res.json();",
+                  "        pm.expect(lista.length).to.eql(Number(antes) + 0);",
+                  "",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "D2 - corpo que não é JSON",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/clientes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clientes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "nome=Ana&telefone=61999998888",
+              "options": {
+                "raw": {
+                  "language": "text"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('antes_clientes', '');",
+                  "pm.sendRequest({ url: pm.variables.get('baseUrl') + '/clientes', method: 'GET' }, function (err, res) {",
+                  "    if (!err && res && res.code === 200) {",
+                  "        try { pm.collectionVariables.set('antes_clientes', String(res.json().length)); } catch (e) {}",
+                  "    }",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", function () { pm.response.to.have.status(400); });",
+                  "pm.sendRequest({ url: pm.variables.get('baseUrl') + '/clientes', method: 'GET' }, function (err, res) {",
+                  "    pm.test(\"Nada gravado: a quantidade de registros em /clientes não mudou\", function () {",
+                  "        pm.expect(err, 'GET de conferência em /clientes falhou').to.be.null;",
+                  "        pm.expect(res.code).to.eql(200);",
+                  "        const antes = pm.collectionVariables.get('antes_clientes');",
+                  "        pm.expect(antes, 'contagem anterior indisponível').to.match(/^\\d+$/);",
+                  "        const lista = res.json();",
+                  "        pm.expect(lista.length).to.eql(Number(antes) + 0);",
+                  "",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "CT-API-ROB-002 [Média] Rotas e métodos não suportados",
+      "description": "Status 404 em 1 e 2, 405 em 3 a 5, e nenhum dado alterado.",
+      "item": [
+        {
+          "name": "1. GET /rota-inexistente",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/rota-inexistente",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "rota-inexistente"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", function () { pm.response.to.have.status(404); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2. GET /clientes/999",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/clientes/999",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clientes",
+                "999"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404 (se devolver 200 com a lista completa: severidade baixa a média)\", function () { pm.response.to.have.status(404); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3. GET /login",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "login"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 405\", function () { pm.response.to.have.status(405); });",
+                  "pm.test(\"Corpo conforme o contrato: {\\\"erro\\\":\\\"Método não permitido. Use ...\\\"}\", function () {",
+                  "    pm.expect(pm.response.json().erro).to.match(/^Método não permitido\\. Use /);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4. PUT /clientes",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/clientes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clientes"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('antes_clientes', '');",
+                  "pm.sendRequest({ url: pm.variables.get('baseUrl') + '/clientes', method: 'GET' }, function (err, res) {",
+                  "    if (!err && res && res.code === 200) {",
+                  "        try { pm.collectionVariables.set('antes_clientes', String(res.json().length)); } catch (e) {}",
+                  "    }",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 405\", function () { pm.response.to.have.status(405); });",
+                  "pm.test(\"Corpo conforme o contrato: {\\\"erro\\\":\\\"Método não permitido. Use ...\\\"}\", function () {",
+                  "    pm.expect(pm.response.json().erro).to.match(/^Método não permitido\\. Use /);",
+                  "});",
+                  "",
+                  "pm.sendRequest({ url: pm.variables.get('baseUrl') + '/clientes', method: 'GET' }, function (err, res) {",
+                  "    pm.test(\"Nada gravado: a quantidade de registros em /clientes não mudou (nenhum dado alterado)\", function () {",
+                  "        pm.expect(err, 'GET de conferência em /clientes falhou').to.be.null;",
+                  "        pm.expect(res.code).to.eql(200);",
+                  "        const antes = pm.collectionVariables.get('antes_clientes');",
+                  "        pm.expect(antes, 'contagem anterior indisponível').to.match(/^\\d+$/);",
+                  "        const lista = res.json();",
+                  "        pm.expect(lista.length).to.eql(Number(antes) + 0);",
+                  "",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5. DELETE /servicos",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/servicos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servicos"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('antes_servicos', '');",
+                  "pm.sendRequest({ url: pm.variables.get('baseUrl') + '/servicos', method: 'GET' }, function (err, res) {",
+                  "    if (!err && res && res.code === 200) {",
+                  "        try { pm.collectionVariables.set('antes_servicos', String(res.json().length)); } catch (e) {}",
+                  "    }",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 405\", function () { pm.response.to.have.status(405); });",
+                  "pm.test(\"Corpo conforme o contrato: {\\\"erro\\\":\\\"Método não permitido. Use ...\\\"}\", function () {",
+                  "    pm.expect(pm.response.json().erro).to.match(/^Método não permitido\\. Use /);",
+                  "});",
+                  "",
+                  "pm.sendRequest({ url: pm.variables.get('baseUrl') + '/servicos', method: 'GET' }, function (err, res) {",
+                  "    pm.test(\"Nada gravado: a quantidade de registros em /servicos não mudou (nenhum dado alterado)\", function () {",
+                  "        pm.expect(err, 'GET de conferência em /servicos falhou').to.be.null;",
+                  "        pm.expect(res.code).to.eql(200);",
+                  "        const antes = pm.collectionVariables.get('antes_servicos');",
+                  "        pm.expect(antes, 'contagem anterior indisponível').to.match(/^\\d+$/);",
+                  "        const lista = res.json();",
+                  "        pm.expect(lista.length).to.eql(Number(antes) + 0);",
+                  "",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "CT-API-ACE-001 [Alta] Funcionalidade protegida exige credencial",
+      "description": "RNF04 e restrição 5.1 da visão. Nenhum header de autenticação é enviado. O mecanismo (token, sessão) não está definido; se a equipe decidir que a API é pública, registrar como decisão de projeto.",
+      "item": [
+        {
+          "name": "1. GET /clientes sem credencial",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/clientes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clientes"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 401 (status 2xx é severidade alta pela visão, RNF04)\", function () { pm.response.to.have.status(401); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2. POST /clientes sem credencial",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/clientes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clientes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Sem Login Teste\",\n  \"telefone\": \"61999998888\",\n  \"placa\": \"VWX2345\",\n  \"modeloVeiculo\": \"Gol\",\n  \"marcaVeiculo\": \"Volkswagen\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('antes_clientes', '');",
+                  "pm.sendRequest({ url: pm.variables.get('baseUrl') + '/clientes', method: 'GET' }, function (err, res) {",
+                  "    if (!err && res && res.code === 200) {",
+                  "        try { pm.collectionVariables.set('antes_clientes', String(res.json().length)); } catch (e) {}",
+                  "    }",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 401 (status 2xx é severidade alta pela visão, RNF04)\", function () { pm.response.to.have.status(401); });",
+                  "pm.sendRequest({ url: pm.variables.get('baseUrl') + '/clientes', method: 'GET' }, function (err, res) {",
+                  "    pm.test(\"Nada gravado: a quantidade de registros em /clientes não mudou\", function () {",
+                  "        pm.expect(err, 'GET de conferência em /clientes falhou').to.be.null;",
+                  "        pm.expect(res.code).to.eql(200);",
+                  "        const antes = pm.collectionVariables.get('antes_clientes');",
+                  "        pm.expect(antes, 'contagem anterior indisponível').to.match(/^\\d+$/);",
+                  "        const lista = res.json();",
+                  "        pm.expect(lista.length).to.eql(Number(antes) + 0);",
+                  "",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "CT-API-ROB-003 [Média] A API continua respondendo depois de entradas inválidas",
+      "description": "Passo 1 do caso (executar os casos negativos) é cumprido ao rodar a coleção inteira na ordem, sem reiniciar a API. Qualquer requisição que tenha ficado sem resposta aparece como erro de conexão no runner.",
+      "item": [
+        {
+          "name": "GET /clientes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/clientes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clientes"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200 (a API continua respondendo após as entradas inválidas)\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resposta é uma lista JSON\", function () { pm.expect(pm.response.json()).to.be.an('array'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /funcionarios",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/funcionarios",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "funcionarios"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200 (a API continua respondendo após as entradas inválidas)\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resposta é uma lista JSON\", function () { pm.expect(pm.response.json()).to.be.an('array'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /servicos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/servicos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servicos"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200 (a API continua respondendo após as entradas inválidas)\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resposta é uma lista JSON\", function () { pm.expect(pm.response.json()).to.be.an('array'); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "count_clientes",
+      "value": ""
+    },
+    {
+      "key": "count_funcionarios",
+      "value": ""
+    },
+    {
+      "key": "count_servicos",
+      "value": ""
+    },
+    {
+      "key": "antes_clientes",
+      "value": ""
+    },
+    {
+      "key": "antes_funcionarios",
+      "value": ""
+    },
+    {
+      "key": "antes_servicos",
+      "value": ""
+    }
+  ]
+}
